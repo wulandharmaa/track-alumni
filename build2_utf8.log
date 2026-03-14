@@ -1,0 +1,207 @@
+﻿
+> alumni-tracker@0.1.0 build
+> next build
+
+Γû▓ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+node.exe : Error: 
+Cannot apply 
+unknown utility 
+class 
+`bg-background`. 
+Are you using CSS 
+modules or similar 
+and missing 
+`@reference`? https:
+//tailwindcss.com/do
+cs/functions-and-dir
+ectives#reference-di
+rective
+At line:1 char:1
++ & "C:\Program File
+s\nodejs/node.exe" 
+"C:\Program Files\no
+dejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo  
+            : NotS  
+  pecified: (Erro   
+ r: Cannot a...r    
+ence-directive:    
+String) [], Rem    
+oteException
+    + FullyQualifie 
+   dErrorId : Nati  
+  veCommandError
+ 
+    [2m[at 
+onInvalidCandidate (
+C:\Semester6\Folder\
+alumni-tracker\node_
+modules\tailwindcss\
+dist\lib.js:21:1314)
+][0m
+    [2m[at Ee (C:\S
+emester6\Folder\alum
+ni-tracker\node_modu
+les\tailwindcss\dist
+\lib.js:16:37066)][
+0m
+    [2m[at C:\Semes
+ter6\Folder\alumni-t
+racker\node_modules\
+tailwindcss\dist\lib
+.js:21:355][0m
+    [2m[at Pr (C:\S
+emester6\Folder\alum
+ni-tracker\node_modu
+les\tailwindcss\dist
+\lib.js:3:1733)][0m
+    [2m[at _ (C:\Se
+mester6\Folder\alumn
+i-tracker\node_modul
+es\tailwindcss\dist\
+lib.js:3:1377)][0m
+    [2m[at Te (C:\S
+emester6\Folder\alum
+ni-tracker\node_modu
+les\tailwindcss\dist
+\lib.js:21:172)][0m
+    [2m[at pn (C:\S
+emester6\Folder\alum
+ni-tracker\node_modu
+les\tailwindcss\dist
+\lib.js:38:294)][0m
+    [2m[at process.
+processTicksAndRejec
+tions (node:internal
+/process/task_queues
+:103:5)][0m
+    [2m[at async 
+dn (C:\Semester6\Fol
+der\alumni-tracker\n
+ode_modules\tailwind
+css\dist\lib.js:38:6
+31)][0m
+    [2m[at async 
+Xr (C:\Semester6\Fol
+der\alumni-tracker\n
+ode_modules\@tailwin
+dcss\node\dist\index
+.js:10:3417)][0m
+
+> Build error 
+occurred
+Error: Turbopack 
+build failed with 1 
+errors:
+./src/app/globals.cs
+s
+Error evaluating 
+Node.js code
+CssSyntaxError: 
+tailwindcss: C:\Seme
+ster6\Folder\alumni-
+tracker\src\app\glob
+als.css:1:1: Cannot 
+apply unknown 
+utility class 
+`bg-background`. 
+Are you using CSS 
+modules or similar 
+and missing 
+`@reference`? https:
+//tailwindcss.com/do
+cs/functions-and-dir
+ectives#reference-di
+rective
+    at Input.error (
+node_modules/postcss
+/lib/input.js:135:16
+) [C:\Semester6\Fold
+er\alumni-tracker\.n
+ext\build\chunks\nod
+e_modules_fe693df6._
+.js:4651:22]
+    at Root.error (n
+ode_modules/postcss/
+lib/node.js:146:32) 
+[C:\Semester6\Folder
+\alumni-tracker\.nex
+t\build\chunks\node_
+modules_fe693df6._.j
+s:928:38]
+    [at Object.Once 
+(C:\Semester6\Folder
+\alumni-tracker\node
+_modules\@tailwindcs
+s\postcss\dist\index
+.js:10:6913)]
+    [at process.proc
+essTicksAndRejection
+s (node:internal/pro
+cess/task_queues:103
+:5)]
+    at async 
+LazyResult.runAsync 
+(node_modules/postcs
+s/lib/lazy-result.js
+:293:11) [C:\Semeste
+r6\Folder\alumni-tra
+cker\.next\build\chu
+nks\node_modules_fe6
+93df6._.js:6214:21]
+    at async 
+transform (turbopack
+:///[turbopack-node]
+/transforms/postcss.
+ts:70:34) [C:\Semest
+er6\Folder\alumni-tr
+acker\.next\build\ch
+unks\[root-of-the-se
+rver]__51225daf._.js
+:146:36]
+    at async run (tu
+rbopack:///[turbopac
+k-node]/ipc/evaluate
+.ts:92:23) [C:\Semes
+ter6\Folder\alumni-t
+racker\.next\build\c
+hunks\[root-of-the-s
+erver]__974941ed._.j
+s:443:31]
+
+Import trace:
+  Client Component 
+Browser:
+    ./src/app/global
+s.css [Client 
+Component Browser]
+    ./src/app/layout
+.jsx [Server 
+Component]
+
+
+    at async 
+transform (turbopack
+:///[turbopack-node]
+/transforms/postcss.
+ts:70:34) [C:\Semest
+er6\Folder\alumni-tr
+acker\.next\build\ch
+unks\[root-of-the-se
+rver]__51225daf._.js
+:146:36])
+    at async run (tu
+rbopack:///[turbopac
+k-node]/ipc/evaluate
+.ts:92:23) [C:\Semes
+ter6\Folder\alumni-t
+racker\.next\build\c
+hunks\[root-of-the-s
+erver]__974941ed._.j
+s:443:31])

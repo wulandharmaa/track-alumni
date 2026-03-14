@@ -73,7 +73,7 @@ Pengujian dilakukan berdasarkan use case yang dirancang pada Daily Project 2 ser
 | 11 | TC-11 | Algoritma Scoring | Alumni cocok 100% | Profil nama/bidang cocok | Skor $\ge$ 80 → status "Teridentifikasi" | Skor statis 95 dari Data Dummy | Berhasil (Data Mock) |
 | 12 | TC-12 | Algoritma Cross-Validation | Alumni ditemukan di 2 sumber | Kandidat ada di LinkedIn & Scholar | Skor dinaikkan +10 (capped 100) | Skor statis 60 dari Data Dummy | Berhasil (Data Mock) |
 | 13 | TC-13 | Status "Perlu Verifikasi" | Skor 50–79 | Kandidat cocok sebagian | Muncul di antrean Verifikasi Manual | Masuk list verifikasi dari Data Dummy | Berhasil (Data Mock) |
-| 14 | TC-14 | Autentikasi Login/Register | Akses dibatasi untuk admin | Buka dashboard langsung | User dialihkan ke halaman Login | Halaman terbuka semua tanpa login | Tidak Ada (Belum Dibuat) |
+| 14 | TC-14 | Autentikasi Login/Register | Akses dibatasi untuk admin | Buka dashboard langsung | User dialihkan ke halaman Login | Halaman terbuka semua tanpa login | Tidak Ada |
 
 ---
 

@@ -1,15 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
 import { useAlumni } from '@/lib/alumniStore';
 import Link from 'next/link';
 import ScrollReveal from '@/components/ScrollReveal';
+import { useRouter } from 'next/navigation';
+import { isAuthenticated } from '@/lib/authState';
 
 export default function Dashboard() {
+  const router = useRouter();
   const { alumniList, jalankanPelacakan, isTracking, laporanList, errorMsg } = useAlumni();
   const [lastResult, setLastResult] = useState(null);
   const [localError, setLocalError] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkSession() {
+      const loggedIn = await isAuthenticated();
+
+      if (!mounted) return;
+      if (!loggedIn) {
+        router.replace('/authentication');
+        return;
+      }
+
+      setAuthReady(true);
+    }
+
+    checkSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   const total = alumniList.length;
   const sedangDilacak = alumniList.filter(a => a.status_lacak === 'Belum Dilacak').length;
@@ -33,6 +59,14 @@ export default function Dashboard() {
   }
 
   const displayError = localError || errorMsg;
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center lp-mono text-sm text-[#22d3ee]">
+        Memeriksa autentikasi...
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto w-full pb-16">

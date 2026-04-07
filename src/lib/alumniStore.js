@@ -1,76 +1,16 @@
 'use client';
 
-// Shared in-memory data store using localStorage untuk persistensi antar halaman
+// Supabase-backed alumni store with verification logic
 import { createContext, useContext, useState, useEffect } from 'react';
+import { getSupabaseClient } from './supabaseClient';
 import { JalankanPelacakanSatuAlumni } from './trackingLogic';
-
-const defaultAlumni = [
-  {
-    id: "ALM-001",
-    nama: "Wulan Dharma Putri",
-    nim: "202310370311279",
-    prodi: "Informatika",
-    tahun_lulus: "2023",
-    kota_asal: "Malang",
-    bidang: "Software Engineering",
-    status_lacak: "Teridentifikasi dari sumber publik",
-    confidence_score: 95,
-    tanggal_update: "2024-03-14",
-    kandidat: {
-      sinyal: {
-        nama_ditemukan: "Wulan Dharma Putri",
-        jabatan_role: "Software Engineer",
-        afiliasi: "Tokopedia",
-        lokasi: "Jakarta",
-        sumber: "LinkedIn",
-        url_profil: "#"
-      },
-      skor: 95
-    }
-  },
-  {
-    id: "ALM-002",
-    nama: "Rikza Ahmad Nur Muhammad",
-    nim: "202310370311265",
-    prodi: "Informatika",
-    tahun_lulus: "2023",
-    kota_asal: "Surabaya",
-    bidang: "Web Development",
-    status_lacak: "Belum Dilacak",
-    confidence_score: 0,
-    tanggal_update: "2023-08-10",
-    kandidat: null
-  },
-  {
-    id: "ALM-003",
-    nama: "Budi Santoso",
-    nim: "202310370311100",
-    prodi: "Teknik Mesin",
-    tahun_lulus: "2022",
-    kota_asal: "Jakarta",
-    bidang: "Otomotif",
-    status_lacak: "Perlu Verifikasi Manual",
-    confidence_score: 55,
-    tanggal_update: "2024-01-20",
-    kandidat: {
-      sinyal: {
-        nama_ditemukan: "Budi S.",
-        jabatan_role: "Mechanical Engineer",
-        afiliasi: "PT. Astra International",
-        lokasi: "Jakarta",
-        sumber: "LinkedIn",
-        url_profil: "#"
-      },
-      skor: 55
-    }
-  }
-];
 
 // Validasi field wajib saat menambah alumni
 function validasiAlumni(data) {
   const errors = [];
   if (!data.nama?.trim()) errors.push('Nama wajib diisi.');
   if (!data.nim?.trim()) errors.push('NIM wajib diisi.');
+  if (!data.universitas?.trim()) errors.push('Universitas wajib diisi.');
   if (!data.prodi?.trim()) errors.push('Program Studi wajib diisi.');
   if (!data.tahun_lulus?.trim()) errors.push('Tahun Lulus wajib diisi.');
   if (!data.kota_asal?.trim()) errors.push('Kota Asal wajib diisi.');
@@ -80,51 +20,97 @@ function validasiAlumni(data) {
 
 const AlumniContext = createContext(null);
 
+// Fetch all alumni from Supabase
+async function fetchAlumniFromSupabase() {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('alumni')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Gagal mengambil alumni dari Supabase:', err);
+    return [];
+  }
+}
+
+// Fetch all detail alumni for verification purposes
+async function fetchDetailAlumniFromSupabase() {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('detail-alumni')
+      .select('nim, nama, universitas:nama_pt');
+
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Gagal mengambil detail alumni dari Supabase:', err);
+    return [];
+  }
+}
+
+// Check if alumni is verified in detail-alumni table
+// Matching strategy: prefer NIM, fallback to nama + universitas
+function isAlumniVerified(alumni, detailAlumniList) {
+  // Strategy 1: Match by NIM (primary)
+  if (alumni.nim) {
+    const matchedByNim = detailAlumniList.some(d => d.nim === alumni.nim);
+    if (matchedByNim) return true;
+  }
+
+  // Strategy 2: Match by nama + universitas (fallback)
+  if (alumni.nama && alumni.universitas) {
+    const matchedByNameUniv = detailAlumniList.some(
+      d => d.nama?.toLowerCase() === alumni.nama.toLowerCase() &&
+           d.universitas?.toLowerCase() === alumni.universitas.toLowerCase()
+    );
+    if (matchedByNameUniv) return true;
+  }
+
+  return false;
+}
+
+// Merge verification status into alumni list
+function mergeVerificationStatus(alumniList, detailAlumniList) {
+  return alumniList.map(alumni => ({
+    ...alumni,
+    verifikasi_ppdikti: isAlumniVerified(alumni, detailAlumniList) 
+      ? 'Terverifikasi' 
+      : 'Belum Terverifikasi'
+  }));
+}
+
 export function AlumniProvider({ children }) {
-  const [alumniList, setAlumniList] = useState(defaultAlumni);
+  const [alumniList, setAlumniList] = useState([]);
   const [laporanList, setLaporanList] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null); // Global error state
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load from localStorage jika ada
+  // Load alumni and detail-alumni from Supabase
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('alumniData');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setAlumniList(parsed);
-        }
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        const [alumni, detailAlumni] = await Promise.all([
+          fetchAlumniFromSupabase(),
+          fetchDetailAlumniFromSupabase()
+        ]);
+        const mergedAlumni = mergeVerificationStatus(alumni, detailAlumni);
+        setAlumniList(mergedAlumni);
+      } catch (err) {
+        console.error('Error loading data:', err);
+        setErrorMsg('Gagal memuat data alumni');
+      } finally {
+        setIsLoading(false);
       }
-      const storedLaporan = localStorage.getItem('laporanData');
-      if (storedLaporan) {
-        const parsed = JSON.parse(storedLaporan);
-        if (Array.isArray(parsed)) {
-          setLaporanList(parsed);
-        }
-      }
-    } catch (err) {
-      console.error('Gagal memuat data dari localStorage:', err);
-      // Data tetap menggunakan default
     }
+    loadData();
   }, []);
-
-  // Save ke localStorage setiap ada perubahan
-  useEffect(() => {
-    try {
-      localStorage.setItem('alumniData', JSON.stringify(alumniList));
-    } catch (err) {
-      console.error('Gagal menyimpan data alumni ke localStorage:', err);
-    }
-  }, [alumniList]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('laporanData', JSON.stringify(laporanList));
-    } catch (err) {
-      console.error('Gagal menyimpan laporan ke localStorage:', err);
-    }
-  }, [laporanList]);
 
   // Bersihkan pesan error setelah 5 detik
   useEffect(() => {
@@ -134,46 +120,89 @@ export function AlumniProvider({ children }) {
     }
   }, [errorMsg]);
 
-  // Tambah alumni baru dengan validasi
-  function tambahAlumni(data) {
+  // Tambah alumni baru dengan validasi dan simpan ke Supabase
+  async function tambahAlumni(data) {
     const errors = validasiAlumni(data);
     if (errors.length > 0) {
       setErrorMsg(errors.join(' '));
       return { success: false, errors };
     }
 
-    // Cek duplikasi NIM
-    const nimSudahAda = alumniList.some(a => a.nim === data.nim.trim());
-    if (nimSudahAda) {
-      setErrorMsg('NIM sudah terdaftar dalam sistem.');
-      return { success: false, errors: ['NIM sudah terdaftar.'] };
-    }
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Cek duplikasi NIM di Supabase
+      const { data: existing, error: checkError } = await supabase
+        .from('alumni')
+        .select('id')
+        .eq('nim', data.nim.trim())
+        .maybeSingle();
 
-    const newAlumni = {
-      ...data,
-      nama: data.nama.trim(),
-      nim: data.nim.trim(),
-      prodi: data.prodi.trim(),
-      tahun_lulus: data.tahun_lulus.trim(),
-      kota_asal: data.kota_asal.trim(),
-      bidang: data.bidang.trim(),
-      id: `ALM-${Date.now()}`,
-      status_lacak: "Belum Dilacak",
-      confidence_score: 0,
-      tanggal_update: new Date().toISOString().split('T')[0],
-      kandidat: null
-    };
-    setAlumniList(prev => [...prev, newAlumni]);
-    return { success: true };
+      if (checkError) throw checkError;
+
+      if (existing) {
+        setErrorMsg('NIM sudah terdaftar dalam sistem.');
+        return { success: false, errors: ['NIM sudah terdaftar.'] };
+      }
+
+      // Insert new alumni ke Supabase
+      const newAlumni = {
+        nama: data.nama.trim(),
+        nim: data.nim.trim(),
+        universitas: data.universitas.trim(),
+        prodi: data.prodi.trim(),
+        tahun_lulus: data.tahun_lulus.trim(),
+        kota_asal: data.kota_asal.trim(),
+        bidang: data.bidang.trim(),
+        status_lacak: 'Belum Dilacak',
+        confidence_score: 0,
+        tanggal_update: new Date().toISOString().split('T')[0]
+      };
+
+      const { error: insertError } = await supabase
+        .from('alumni')
+        .insert([newAlumni]);
+
+      if (insertError) throw insertError;
+
+      // Reload alumni list
+      const updatedAlumni = await fetchAlumniFromSupabase();
+      const detailAlumni = await fetchDetailAlumniFromSupabase();
+      const mergedAlumni = mergeVerificationStatus(updatedAlumni, detailAlumni);
+      setAlumniList(mergedAlumni);
+
+      return { success: true };
+    } catch (err) {
+      console.error('Error tambah alumni:', err);
+      setErrorMsg('Gagal menambahkan alumni');
+      return { success: false, errors: [err.message] };
+    }
   }
 
-  // Update status alumni (untuk verifikasi)
-  function updateAlumni(id, updates) {
+  // Update alumni status in Supabase
+  async function updateAlumni(id, updates) {
     if (!id) {
       console.error('updateAlumni: ID alumni tidak boleh kosong.');
       return;
     }
-    setAlumniList(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase
+        .from('alumni')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Reload alumni list
+      const updatedAlumni = await fetchAlumniFromSupabase();
+      const detailAlumni = await fetchDetailAlumniFromSupabase();
+      const mergedAlumni = mergeVerificationStatus(updatedAlumni, detailAlumni);
+      setAlumniList(mergedAlumni);
+    } catch (err) {
+      console.error('Error update alumni:', err);
+      setErrorMsg('Gagal memperbarui alumni');
+    }
   }
 
   // Jalankan pelacakan dengan error handling per-alumni
@@ -218,12 +247,11 @@ export function AlumniProvider({ children }) {
             continue;
           }
 
-          // Update status di list
-          updateAlumni(alumni.id, {
+          // Update status di Supabase
+          await updateAlumni(alumni.id, {
             status_lacak: hasil.status_baru,
             confidence_score: hasil.kandidat_terbaik?.skor || 0,
-            tanggal_update: new Date().toISOString().split('T')[0],
-            kandidat: hasil.kandidat_terbaik
+            tanggal_update: new Date().toISOString().split('T')[0]
           });
 
           newLaporan.push({
@@ -268,11 +296,26 @@ export function AlumniProvider({ children }) {
     }
   }
 
+  // Refresh verification status after PDDIKTI sync
+  async function refreshVerificationStatus() {
+    try {
+      const [updatedAlumni, detailAlumni] = await Promise.all([
+        fetchAlumniFromSupabase(),
+        fetchDetailAlumniFromSupabase()
+      ]);
+      const mergedAlumni = mergeVerificationStatus(updatedAlumni, detailAlumni);
+      setAlumniList(mergedAlumni);
+    } catch (err) {
+      console.error('Error refreshing verification:', err);
+      setErrorMsg('Gagal menyegarkan status verifikasi');
+    }
+  }
+
   return (
     <AlumniContext.Provider value={{
       alumniList, tambahAlumni, updateAlumni,
       laporanList, jalankanPelacakan, isTracking,
-      errorMsg, setErrorMsg
+      errorMsg, setErrorMsg, isLoading, refreshVerificationStatus
     }}>
       {children}
     </AlumniContext.Provider>

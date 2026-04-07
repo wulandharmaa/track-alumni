@@ -10,8 +10,9 @@ export default function LayoutWrapper({ children }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isLandingPage = pathname === '/';
+  const isAuthPage = pathname === '/authentication';
 
-  if (isLandingPage) {
+  if (isLandingPage || isAuthPage) {
     return <main className="min-h-screen relative z-10 w-full">{children}</main>;
   }
 

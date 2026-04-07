@@ -1,12 +1,60 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, CheckSquare, Search, Settings, FileBarChart2, X, Home } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, Users, CheckSquare, Search, Settings, FileBarChart2, X, LogOut, School } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getSupabaseClient } from '@/lib/supabaseClient';
+import { signOut } from '@/lib/authState';
 
 export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [profile, setProfile] = useState({
+    email: '',
+    username: '',
+  });
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+
+    async function loadProfile() {
+      const { data } = await supabase.auth.getSession();
+      const user = data?.session?.user;
+
+      if (!user) {
+        setProfile({ email: '', username: '' });
+        return;
+      }
+
+      const metadataName = user.user_metadata?.full_name || user.user_metadata?.name;
+      setProfile({
+        email: user.email || '',
+        username: metadataName || user.email || 'Pengguna',
+      });
+    }
+
+    loadProfile();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadProfile();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    await signOut();
+    onClose();
+    router.replace('/authentication');
+  }
 
   const links = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -14,6 +62,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { name: 'Hasil Pelacakan', href: '/hasil', icon: Search },
     { name: 'Verifikasi Manual', href: '/verifikasi', icon: CheckSquare },
     { name: 'Laporan', href: '/laporan', icon: FileBarChart2 },
+    { name: 'PDDIKTI', href: '/pddikti', icon:  School},
   ];
 
   return (
@@ -104,14 +153,20 @@ export default function Sidebar({ isOpen, onClose }) {
             <Settings className="w-4 h-4" />
             Pengaturan
           </button>
-          <Link
-            href="/"
-            onClick={onClose}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#475569] hover:text-white hover:bg-[#22d3ee]/5 transition-all duration-200"
-          >
-            <Home className="w-4 h-4" />
-            Kembali ke Beranda
-          </Link>
+          <div className="mt-2 rounded-xl border border-[rgba(34,211,238,0.12)] bg-[rgba(34,211,238,0.04)] p-3">
+            <div className="lp-mono text-[10px] uppercase tracking-widest text-[#475569] mb-1">Profil</div>
+            <div className="text-sm font-semibold text-white truncate">{profile.username || 'Pengguna'}</div>
+            <div className="text-xs text-[#94a3b8] truncate">{profile.email || 'Tidak ada email sesi'}</div>
+
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-red-300 bg-red-500/10 border border-red-500/20 hover:bg-red-500/15 hover:text-red-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {isLoggingOut ? 'Keluar...' : 'Logout'}
+            </button>
+          </div>
         </div>
       </div>
     </>

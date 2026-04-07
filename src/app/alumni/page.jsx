@@ -1,30 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Plus, X, Loader2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Search, Plus, X, Loader2, AlertTriangle, ArrowRight, RotateCw } from 'lucide-react';
 import { useAlumni } from '@/lib/alumniStore';
 import ScrollReveal from '@/components/ScrollReveal';
 
-const STATUS_COLOR = {
-  'Teridentifikasi dari sumber publik': '#34d399',
-  'Perlu Verifikasi Manual': '#fbbf24',
-  'Belum Dilacak': '#94a3b8',
-  'Belum Ditemukan di Sumber Publik': '#ef4444',
-  'Gagal diproses': '#ef4444',
-};
-
 // Modal form tambah alumni
 function TambahModal({ onClose, onSubmit }) {
-  const [form, setForm] = useState({ nama: '', nim: '', prodi: '', tahun_lulus: '', kota_asal: '', bidang: '' });
+  const [form, setForm] = useState({ nama: '', nim: '', universitas: '', prodi: '', tahun_lulus: '', kota_asal: '', bidang: '' });
   const [formErrors, setFormErrors] = useState([]);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setFormErrors([]);
 
     const errors = [];
     if (!form.nama.trim()) errors.push('Nama wajib diisi.');
     if (!form.nim.trim()) errors.push('NIM wajib diisi.');
+    if (!form.universitas.trim()) errors.push('Universitas wajib diisi.');
     if (!form.prodi.trim()) errors.push('Program Studi wajib diisi.');
     if (!form.tahun_lulus.trim()) errors.push('Tahun Lulus wajib diisi.');
     if (form.tahun_lulus.trim() && !/^\d{4}$/.test(form.tahun_lulus.trim())) {
@@ -38,7 +31,7 @@ function TambahModal({ onClose, onSubmit }) {
       return;
     }
 
-    const result = onSubmit(form);
+    const result = await onSubmit(form);
     if (result && !result.success) {
       setFormErrors(result.errors || ['Gagal menambahkan alumni.']);
       return;
@@ -73,6 +66,7 @@ function TambahModal({ onClose, onSubmit }) {
           {[
             { key: 'nama', label: 'Nama Lengkap', placeholder: 'Muhammad Rizky...' },
             { key: 'nim', label: 'NIM', placeholder: '202310370311...' },
+            { key: 'universitas', label: 'Universitas', placeholder: 'Universitas Teknologi Yogyakarta' },
             { key: 'prodi', label: 'Program Studi', placeholder: 'Informatika' },
             { key: 'tahun_lulus', label: 'Tahun Lulus', placeholder: '2023' },
             { key: 'kota_asal', label: 'Kota Asal', placeholder: 'Malang' },
@@ -99,11 +93,12 @@ function TambahModal({ onClose, onSubmit }) {
 }
 
 export default function MasterAlumni() {
-  const { alumniList, tambahAlumni, jalankanPelacakan, isTracking, errorMsg } = useAlumni();
+  const { alumniList, tambahAlumni, jalankanPelacakan, isTracking, errorMsg, isLoading, refreshVerificationStatus } = useAlumni();
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [trackingId, setTrackingId] = useState(null);
   const [trackError, setTrackError] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const filtered = alumniList.filter(a =>
     a.nama.toLowerCase().includes(search.toLowerCase()) ||
@@ -127,6 +122,27 @@ export default function MasterAlumni() {
   }
 
   const displayError = trackError || errorMsg;
+
+  async function handleRefreshTable() {
+    setIsRefreshing(true);
+    try {
+      await refreshVerificationStatus();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto w-full pb-16 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[#22d3ee] mx-auto mb-4" />
+          <p className="text-[#94a3b8]">Memuat data alumni...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto w-full pb-16">
@@ -177,14 +193,26 @@ export default function MasterAlumni() {
 
       {/* Alumni list - flat, tanpa table wrapper */}
       <ScrollReveal delay={150}>
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={handleRefreshTable}
+            disabled={isRefreshing || isLoading}
+            className="px-3 py-2 rounded-lg lp-mono text-[11px] font-bold text-[#22d3ee] border border-[rgba(34,211,238,0.18)] hover:border-[#22d3ee] hover:text-white transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Menyegarkan...' : 'Refresh Tabel'}
+          </button>
+        </div>
+
         {/* Table header - hidden di mobile */}
-        <div className="hidden md:flex items-center gap-4 py-3 mb-1 lp-mono text-[10px] text-[#22d3ee] uppercase tracking-widest">
+        <div className="hidden lg:flex items-center gap-4 py-3 mb-1 lp-mono text-[10px] text-[#22d3ee] uppercase tracking-widest">
           <div className="w-8" />
           <div className="flex-1">Nama</div>
           <div className="w-32">NIM</div>
           <div className="w-40">Prodi / Tahun</div>
-          <div className="w-44">Status</div>
-          <div className="w-28 text-right">Aksi</div>
+          <div className="w-40">Universitas</div>
+          <div className="w-40">Verifikasi PPDIKTI</div>
+          <div className="w-32 text-right">Aksi</div>
         </div>
 
         <div className="divide-y divide-[rgba(34,211,238,0.05)]">
@@ -192,8 +220,8 @@ export default function MasterAlumni() {
             <div className="py-12 text-center text-[#475569] text-sm">Tidak ada data ditemukan.</div>
           )}
           {filtered.map((alumni, i) => (
-            <div key={alumni.id} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 py-4 group hover:pl-1 transition-all duration-200">
-              <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+            <div key={alumni.id} className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4 py-4 group hover:pl-1 transition-all duration-200">
+              <div className="flex items-center gap-3 lg:gap-4 flex-1 min-w-0">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center lp-mono text-xs font-bold text-[#22d3ee] shrink-0"
                   style={{ background: 'rgba(34, 211, 238, 0.06)', border: '1px solid rgba(34, 211, 238, 0.08)' }}>
                   {alumni.nama?.[0] || '?'}
@@ -204,20 +232,34 @@ export default function MasterAlumni() {
               </div>
 
               {/* Detail info: inline di desktop, stacked di mobile */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-11 md:pl-0 md:contents">
-                <div className="md:w-32 lp-mono text-xs text-[#94a3b8]">{alumni.nim || '-'}</div>
-                <div className="md:w-40 text-xs text-[#94a3b8]">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-11 lg:pl-0 lg:contents">
+                <div className="lg:w-32 lp-mono text-xs text-[#94a3b8]">{alumni.nim || '-'}</div>
+                <div className="lg:w-40 text-xs text-[#94a3b8]">
                   {alumni.prodi || '-'} <span className="text-[#475569]">/</span> {alumni.tahun_lulus || '-'}
                 </div>
-                <div className="md:w-44 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: STATUS_COLOR[alumni.status_lacak] || '#94a3b8' }} />
-                  <span className="text-xs" style={{ color: STATUS_COLOR[alumni.status_lacak] || '#94a3b8' }}>
-                    {alumni.status_lacak === 'Teridentifikasi dari sumber publik' ? 'Teridentifikasi' :
-                     alumni.status_lacak === 'Belum Ditemukan di Sumber Publik' ? 'Tidak Ditemukan' :
-                     alumni.status_lacak || 'Tidak Diketahui'}
+                <div className="lg:w-40 text-xs text-[#94a3b8] truncate">
+                  {alumni.universitas || '-'}
+                </div>
+
+                {/* Verifikasi PPDIKTI Status Badge */}
+                <div className="lg:w-40 flex items-center gap-2">
+                  <div 
+                    className="w-1.5 h-1.5 rounded-full shrink-0" 
+                    style={{ 
+                      background: alumni.verifikasi_ppdikti === 'Terverifikasi' ? '#34d399' : '#fbbf24'
+                    }} 
+                  />
+                  <span 
+                    className="text-xs font-medium"
+                    style={{ 
+                      color: alumni.verifikasi_ppdikti === 'Terverifikasi' ? '#34d399' : '#fbbf24'
+                    }}
+                  >
+                    {alumni.verifikasi_ppdikti || 'Tidak Diketahui'}
                   </span>
                 </div>
-                <div className="md:w-28 md:text-right ml-auto md:ml-0">
+
+                <div className="lg:w-32 lg:text-right ml-auto lg:ml-0">
                   {alumni.status_lacak === 'Belum Dilacak' || alumni.status_lacak === 'Gagal diproses' ? (
                     <button
                       onClick={() => handleLacak(alumni)}

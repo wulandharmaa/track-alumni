@@ -60,7 +60,7 @@ export default function LandingPage() {
             <a href="#produk">Produk</a>
             <a href="#testimoni">Testimoni</a>
             <a href="#teknologi">Teknologi</a>
-            <Link href="/dashboard" className="lp-btn lp-btn-accent" style={{ padding: '8px 20px', fontSize: '12px' }}>Buka Dashboard</Link>
+            <Link href="/authentication" className="lp-btn lp-btn-accent" style={{ padding: '8px 20px', fontSize: '12px' }}>Masuk</Link>
           </div>
 
           {/* Hamburger button untuk mobile */}
@@ -83,7 +83,7 @@ export default function LandingPage() {
           <a href="#produk" onClick={() => setMobileMenuOpen(false)}>Produk</a>
           <a href="#testimoni" onClick={() => setMobileMenuOpen(false)}>Testimoni</a>
           <a href="#teknologi" onClick={() => setMobileMenuOpen(false)}>Teknologi</a>
-          <Link href="/dashboard" className="lp-btn lp-btn-accent w-full justify-center" onClick={() => setMobileMenuOpen(false)}>Buka Dashboard</Link>
+          <Link href="/authentication" className="lp-btn lp-btn-accent w-full justify-center" onClick={() => setMobileMenuOpen(false)}>Masuk</Link>
         </div>
       </div>
 
@@ -95,7 +95,7 @@ export default function LandingPage() {
             <h1 className="lp-h1 lp-stagger lp-stagger-2 mt-4 text-4xl md:text-6xl font-black">Lacak Jejak <span style={{color: 'var(--lp-accent)'}}>Digital</span> Alumni dari Sumber Publik</h1>
             <p className="lp-body lp-stagger lp-stagger-3 mt-6 mb-10 max-w-md">Sistem cerdas yang menemukan, memverifikasi, dan menilai keberadaan alumni melalui analisis multi-sumber secara otomatis.</p>
             <div className="flex gap-4 flex-wrap lp-stagger lp-stagger-4">
-              <Link href="/dashboard" className="lp-btn lp-btn-accent">Buka Dashboard</Link>
+              <Link href="/authentication" className="lp-btn lp-btn-accent">Masuk</Link>
               <Link href="/alumni" className="lp-btn lp-btn-ghost">Lihat Master Data</Link>
             </div>
             <div className="flex gap-10 mt-12 pt-8 border-t border-[rgba(34,211,238,0.08)] lp-stagger lp-stagger-5">
@@ -238,7 +238,7 @@ export default function LandingPage() {
           <h2 className="lp-h2 text-3xl md:text-4xl mb-4">Masuk ke AlumniTrack</h2>
           <p className="mb-10">Mulai lacak alumni Anda sekarang. Sistem sudah siap digunakan langsung dengan data master yang ada.</p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="/dashboard" className="lp-btn lp-btn-accent min-w-[200px] justify-center">Buka Dashboard</Link>
+            <Link href="/authentication" className="lp-btn lp-btn-accent min-w-[200px] justify-center">Masuk</Link>
             <Link href="/alumni" className="lp-btn lp-btn-ghost min-w-[200px] justify-center">Data Master</Link>
           </div>
           <div className="mt-8 text-sm">Butuh melihat hasil pelacakan langsung? <Link href="/hasil" className="text-[#22d3ee] border-b border-[#22d3ee]/30 hover:border-[#22d3ee] pb-0.5">Cek Menu Hasil</Link></div>

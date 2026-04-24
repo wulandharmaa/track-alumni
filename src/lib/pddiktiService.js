@@ -1,3 +1,4 @@
+// pddikti service
 import { getSupabaseClient } from './supabaseClient';
 
 // Use local proxy route to avoid browser CORS/redirect issues.
@@ -95,7 +96,7 @@ function normalizeDetailResponse(data) {
  * Save PDDIKTI detail to Supabase
  * Uses upsert to avoid duplicates based on nim
  */
-export async function savePddiktiDetailToSupabase(detailData, keyword) {
+export async function savePddiktiDetailToSupabase(detailData, keyword, sourceAlumni = null) {
   const supabase = getSupabaseClient();
   const mahasiswaId = detailData?.id || null;
   const nim = detailData?.nim || null;
@@ -118,6 +119,8 @@ export async function savePddiktiDetailToSupabase(detailData, keyword) {
     status_saat_ini: detailData.status_saat_ini || null,
     tanggal_masuk: detailData.tanggal_masuk || null,
     keyword_pencarian: keyword,
+    source_alumni_id: sourceAlumni?.id ? String(sourceAlumni.id) : null,
+    source_alumni_nama: sourceAlumni?.nama || null,
   };
 
   // Upsert by mahasiswa_id. If nim is unique in DB, this still remains idempotent for same mahasiswa.
@@ -154,7 +157,7 @@ export async function searchAndSavePddikti(alumni) {
   const detailData = await getPddiktiDetail(firstResult.id);
 
   // Step 3: Save to Supabase
-  const saveResult = await savePddiktiDetailToSupabase(detailData, query);
+  const saveResult = await savePddiktiDetailToSupabase(detailData, query, alumni);
 
   return {
     alumni_id: alumni.id,

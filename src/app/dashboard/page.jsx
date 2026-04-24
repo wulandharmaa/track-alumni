@@ -1,3 +1,4 @@
+// dashboard
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,13 +8,22 @@ import Link from 'next/link';
 import ScrollReveal from '@/components/ScrollReveal';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/authState';
+import { getSupabaseClient } from '@/lib/supabaseClient';
 
 export default function Dashboard() {
   const router = useRouter();
-  const { alumniList, jalankanPelacakan, isTracking, laporanList, errorMsg } = useAlumni();
+  const { jalankanPelacakan, isTracking, laporanList, errorMsg } = useAlumni();
   const [lastResult, setLastResult] = useState(null);
   const [localError, setLocalError] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState({
+    total: 0,
+    sedangDilacak: 0,
+    perluVerifikasi: 0,
+    selesai: 0,
+    verifiedPddikti: 0,
+  });
+  const [pddiktiHistory, setPddiktiHistory] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -37,10 +47,94 @@ export default function Dashboard() {
     };
   }, [router]);
 
-  const total = alumniList.length;
-  const sedangDilacak = alumniList.filter(a => a.status_lacak === 'Belum Dilacak').length;
-  const perluVerifikasi = alumniList.filter(a => a.status_lacak === 'Perlu Verifikasi Manual').length;
-  const selesai = alumniList.filter(a => a.status_lacak === 'Teridentifikasi dari sumber publik').length;
+  useEffect(() => {
+    if (!authReady) return;
+
+    let mounted = true;
+
+    async function loadDashboardData() {
+      try {
+        const supabase = getSupabaseClient();
+        const [
+          { count: totalCount, error: totalError },
+          { count: belumDilacakCount, error: belumDilacakError },
+          { count: perluVerifikasiCount, error: perluVerifikasiError },
+          { count: selesaiCount, error: selesaiError },
+          { count: verifiedPddiktiCount, error: verifiedPddiktiError },
+          { data: recentDetailRows, error: recentDetailError },
+        ] = await Promise.all([
+          supabase
+            .from('alumni')
+            .select('id', { count: 'exact', head: true }),
+          supabase
+            .from('alumni')
+            .select('id', { count: 'exact', head: true })
+            .eq('status_lacak', 'Belum Dilacak'),
+          supabase
+            .from('alumni')
+            .select('id', { count: 'exact', head: true })
+            .eq('status_lacak', 'Perlu Verifikasi Manual'),
+          supabase
+            .from('alumni')
+            .select('id', { count: 'exact', head: true })
+            .eq('status_lacak', 'Teridentifikasi dari sumber publik'),
+          supabase
+            .from('detail-alumni')
+            .select('id', { count: 'exact', head: true }),
+          supabase
+            .from('detail-alumni')
+            .select('nim, nama, source_alumni_nama, synced_at')
+            .order('synced_at', { ascending: false })
+            .limit(12),
+        ]);
+
+        if (totalError) throw totalError;
+        if (belumDilacakError) throw belumDilacakError;
+        if (perluVerifikasiError) throw perluVerifikasiError;
+        if (selesaiError) throw selesaiError;
+        if (verifiedPddiktiError) throw verifiedPddiktiError;
+        if (recentDetailError) throw recentDetailError;
+        const recentDetail = recentDetailRows || [];
+
+        if (!mounted) return;
+
+        setDashboardStats({
+          total: typeof totalCount === 'number' ? totalCount : 0,
+          sedangDilacak: typeof belumDilacakCount === 'number' ? belumDilacakCount : 0,
+          perluVerifikasi: typeof perluVerifikasiCount === 'number' ? perluVerifikasiCount : 0,
+          selesai: typeof selesaiCount === 'number' ? selesaiCount : 0,
+          verifiedPddikti: typeof verifiedPddiktiCount === 'number' ? verifiedPddiktiCount : 0,
+        });
+
+        setPddiktiHistory(recentDetail.map((row, idx) => ({
+          id: `${row.nim || row.nama || 'pddikti'}-${idx}`,
+          alumni_nama: row.source_alumni_nama || row.nama || 'Alumni',
+          sumber: 'PDDIKTI',
+          status_baru: 'Terverifikasi PDDIKTI',
+          waktu: row.synced_at ? new Date(row.synced_at).toLocaleString('id-ID') : '-',
+          sukses: true,
+          skor: 100,
+        })));
+      } catch (err) {
+        console.error('Error loading dashboard data:', err);
+        if (mounted) {
+          setLocalError('Gagal memuat ringkasan dashboard.');
+        }
+      }
+    }
+
+    loadDashboardData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [authReady, laporanList.length]);
+
+  const total = dashboardStats.total;
+  const sedangDilacak = dashboardStats.sedangDilacak;
+  const perluVerifikasi = dashboardStats.perluVerifikasi;
+  const selesai = dashboardStats.selesai;
+  const verifiedPddikti = dashboardStats.verifiedPddikti;
   const pctSelesai = total > 0 ? Math.round((selesai / total) * 100) : 0;
 
   async function handleCekSekarang() {
@@ -127,6 +221,10 @@ export default function Dashboard() {
               <span className="text-2xl sm:text-3xl font-black text-[#94a3b8]">{sedangDilacak}</span>
               <span className="text-[#475569] text-xs uppercase tracking-wider">belum dilacak</span>
             </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-black text-[#22d3ee]">{verifiedPddikti}</span>
+              <span className="text-[#475569] text-xs uppercase tracking-wider">terverifikasi pddikti</span>
+            </div>
           </div>
         </div>
       </ScrollReveal>
@@ -180,7 +278,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          {laporanList.length === 0 ? (
+          {laporanList.length === 0 && pddiktiHistory.length === 0 ? (
             <div className="py-12 text-center">
               <div className="lp-mono text-7xl text-[rgba(34,211,238,0.06)] font-black mb-3 select-none">—</div>
               <p className="text-sm text-[#475569]">Belum ada riwayat. Jalankan pelacakan untuk memulai.</p>
@@ -203,6 +301,23 @@ export default function Dashboard() {
                     }}>
                       {lap.skor}
                     </span>
+                    <span className="lp-mono text-[10px] text-[#475569] min-w-[80px] text-right hidden sm:block">{lap.waktu}</span>
+                  </div>
+                </div>
+              ))}
+
+              {pddiktiHistory.slice(0, 6).map((lap) => (
+                <div key={lap.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-2 sm:gap-0 group hover:pl-2 transition-all duration-200">
+                  <div className="flex items-center gap-5">
+                    <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-[#22d3ee]" />
+                    <div className="flex flex-col sm:flex-row sm:items-center">
+                      <span className="text-sm font-semibold text-white group-hover:text-[#22d3ee] transition-colors">{lap.alumni_nama}</span>
+                      <span className="text-[#475569] mx-3 hidden sm:inline">—</span>
+                      <span className="text-xs text-[#475569] lp-mono">{lap.status_baru}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6 sm:ml-0 ml-6">
+                    <span className="lp-mono text-xs font-bold text-[#22d3ee]">PDDIKTI</span>
                     <span className="lp-mono text-[10px] text-[#475569] min-w-[80px] text-right hidden sm:block">{lap.waktu}</span>
                   </div>
                 </div>

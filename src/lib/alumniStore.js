@@ -5,6 +5,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { getSupabaseClient } from './supabaseClient';
 import { JalankanPelacakanSatuAlumni } from './trackingLogic';
 
+const ALUMNI_PAGE_SIZE = 50;
+
 // Validasi field wajib saat menambah alumni
 function validasiAlumni(data) {
   const errors = [];
@@ -20,20 +22,27 @@ function validasiAlumni(data) {
 
 const AlumniContext = createContext(null);
 
-// Fetch all alumni from Supabase
-async function fetchAlumniFromSupabase() {
+// Fetch alumni by page from Supabase and return exact total count
+async function fetchAlumniFromSupabase(page = 1, pageSize = ALUMNI_PAGE_SIZE) {
   try {
     const supabase = getSupabaseClient();
-    const { data, error } = await supabase
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await supabase
       .from('alumni')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (error) throw error;
-    return data || [];
+    return {
+      rows: data || [],
+      totalCount: typeof count === 'number' ? count : 0,
+    };
   } catch (err) {
     console.error('Gagal mengambil alumni dari Supabase:', err);
-    return [];
+    return { rows: [], totalCount: 0 };
   }
 }
 
@@ -90,26 +99,33 @@ export function AlumniProvider({ children }) {
   const [isTracking, setIsTracking] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null); // Global error state
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalAlumniCount, setTotalAlumniCount] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(totalAlumniCount / ALUMNI_PAGE_SIZE));
+
+  async function loadAlumniPage(page = 1) {
+    setIsLoading(true);
+    try {
+      const [alumniRes, detailAlumni] = await Promise.all([
+        fetchAlumniFromSupabase(page, ALUMNI_PAGE_SIZE),
+        fetchDetailAlumniFromSupabase()
+      ]);
+      const mergedAlumni = mergeVerificationStatus(alumniRes.rows, detailAlumni);
+      setAlumniList(mergedAlumni);
+      setTotalAlumniCount(alumniRes.totalCount);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setErrorMsg('Gagal memuat data alumni');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   // Load alumni and detail-alumni from Supabase
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      try {
-        const [alumni, detailAlumni] = await Promise.all([
-          fetchAlumniFromSupabase(),
-          fetchDetailAlumniFromSupabase()
-        ]);
-        const mergedAlumni = mergeVerificationStatus(alumni, detailAlumni);
-        setAlumniList(mergedAlumni);
-      } catch (err) {
-        console.error('Error loading data:', err);
-        setErrorMsg('Gagal memuat data alumni');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadData();
+    loadAlumniPage(1);
   }, []);
 
   // Bersihkan pesan error setelah 5 detik
@@ -165,11 +181,8 @@ export function AlumniProvider({ children }) {
 
       if (insertError) throw insertError;
 
-      // Reload alumni list
-      const updatedAlumni = await fetchAlumniFromSupabase();
-      const detailAlumni = await fetchDetailAlumniFromSupabase();
-      const mergedAlumni = mergeVerificationStatus(updatedAlumni, detailAlumni);
-      setAlumniList(mergedAlumni);
+      // Muat ulang halaman pertama agar data terbaru langsung terlihat
+      await loadAlumniPage(1);
 
       return { success: true };
     } catch (err) {
@@ -194,11 +207,9 @@ export function AlumniProvider({ children }) {
 
       if (error) throw error;
 
-      // Reload alumni list
-      const updatedAlumni = await fetchAlumniFromSupabase();
-      const detailAlumni = await fetchDetailAlumniFromSupabase();
-      const mergedAlumni = mergeVerificationStatus(updatedAlumni, detailAlumni);
-      setAlumniList(mergedAlumni);
+      setAlumniList(prev => prev.map(item => (
+        item.id === id ? { ...item, ...updates } : item
+      )));
     } catch (err) {
       console.error('Error update alumni:', err);
       setErrorMsg('Gagal memperbarui alumni');
@@ -299,23 +310,34 @@ export function AlumniProvider({ children }) {
   // Refresh verification status after PDDIKTI sync
   async function refreshVerificationStatus() {
     try {
-      const [updatedAlumni, detailAlumni] = await Promise.all([
-        fetchAlumniFromSupabase(),
-        fetchDetailAlumniFromSupabase()
-      ]);
-      const mergedAlumni = mergeVerificationStatus(updatedAlumni, detailAlumni);
-      setAlumniList(mergedAlumni);
+      await loadAlumniPage(currentPage);
     } catch (err) {
       console.error('Error refreshing verification:', err);
       setErrorMsg('Gagal menyegarkan status verifikasi');
     }
   }
 
+  async function goToPage(page) {
+    const safePage = Math.min(Math.max(page, 1), totalPages);
+    if (safePage === currentPage) return;
+    await loadAlumniPage(safePage);
+  }
+
+  async function goNextPage() {
+    await goToPage(currentPage + 1);
+  }
+
+  async function goPrevPage() {
+    await goToPage(currentPage - 1);
+  }
+
   return (
     <AlumniContext.Provider value={{
       alumniList, tambahAlumni, updateAlumni,
       laporanList, jalankanPelacakan, isTracking,
-      errorMsg, setErrorMsg, isLoading, refreshVerificationStatus
+      errorMsg, setErrorMsg, isLoading, refreshVerificationStatus,
+      currentPage, totalPages, totalAlumniCount, pageSize: ALUMNI_PAGE_SIZE,
+      goToPage, goNextPage, goPrevPage
     }}>
       {children}
     </AlumniContext.Provider>

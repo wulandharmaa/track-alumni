@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Plus, X, Loader2, AlertTriangle, ArrowRight, RotateCw } from 'lucide-react';
+import { Search, Plus, X, Loader2, AlertTriangle, ArrowRight, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAlumni } from '@/lib/alumniStore';
 import ScrollReveal from '@/components/ScrollReveal';
 
@@ -93,7 +93,21 @@ function TambahModal({ onClose, onSubmit }) {
 }
 
 export default function MasterAlumni() {
-  const { alumniList, tambahAlumni, jalankanPelacakan, isTracking, errorMsg, isLoading, refreshVerificationStatus } = useAlumni();
+  const {
+    alumniList,
+    tambahAlumni,
+    jalankanPelacakan,
+    isTracking,
+    errorMsg,
+    isLoading,
+    refreshVerificationStatus,
+    currentPage,
+    totalPages,
+    totalAlumniCount,
+    pageSize,
+    goNextPage,
+    goPrevPage,
+  } = useAlumni();
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [trackingId, setTrackingId] = useState(null);
@@ -156,7 +170,7 @@ export default function MasterAlumni() {
           <div>
             <div className="lp-mono text-[11px] text-[#475569] tracking-widest uppercase mb-6">Master Data</div>
             <h1 className="lp-h1 text-3xl sm:text-4xl md:text-5xl text-white mb-3">
-              Data Alumni <span className="text-[#22d3ee]">({alumniList.length})</span>
+              Data Alumni <span className="text-[#22d3ee]">({totalAlumniCount})</span>
             </h1>
             <p className="lp-body max-w-lg">Kelola data target alumni yang akan dilacak jejak digitalnya.</p>
           </div>
@@ -277,6 +291,31 @@ export default function MasterAlumni() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="lp-mono text-[11px] text-[#475569] uppercase tracking-wider">
+            Menampilkan {alumniList.length} dari {totalAlumniCount} alumni • {pageSize} per halaman
+          </div>
+          <div className="inline-flex items-center gap-2">
+            <button
+              onClick={goPrevPage}
+              disabled={currentPage <= 1 || isLoading}
+              className="px-3 py-2 rounded-lg lp-mono text-[11px] font-bold text-[#22d3ee] border border-[rgba(34,211,238,0.18)] hover:border-[#22d3ee] hover:text-white transition-colors disabled:opacity-40 inline-flex items-center gap-1"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Prev
+            </button>
+            <div className="lp-mono text-[11px] text-[#94a3b8] min-w-[120px] text-center">
+              Halaman {currentPage} / {totalPages}
+            </div>
+            <button
+              onClick={goNextPage}
+              disabled={currentPage >= totalPages || isLoading}
+              className="px-3 py-2 rounded-lg lp-mono text-[11px] font-bold text-[#22d3ee] border border-[rgba(34,211,238,0.18)] hover:border-[#22d3ee] hover:text-white transition-colors disabled:opacity-40 inline-flex items-center gap-1"
+            >
+              Next <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </ScrollReveal>
     </div>
